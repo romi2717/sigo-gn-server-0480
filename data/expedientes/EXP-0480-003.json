@@ -4,5 +4,9 @@
   "zona": "Iztacalco",
   "fecha": "2026-11-03",
   "descripcion": "Se realizo un simulacro en caso de sismos proximos.",
-  "folio": "EXP-0480-003"
+  "folio": "EXP-0480-003",
+  "estatus": "Cerrado",
+  "prioridad": "Baja",
+  "fechaCreacion": "2026-10-23T16:00:00.000Z",
+  "fechaModificacion": "2026-10-23T16:00:00.000Z"
 }

@@ -4,5 +4,9 @@
   "fecha": "2026-11-04",
   "descripcion": "Se actualizo el recorrido de vigilancia.",
   "zona": "Zona Centro",
-  "folio": "EXP-0480-001"
+  "folio": "EXP-0480-001",
+  "estatus": "Abierto",
+  "prioridad": "Alta",
+  "fechaCreacion": "2026-10-21T16:00:00.000Z",
+  "fechaModificacion": "2026-10-21T16:00:00.000Z"
 }

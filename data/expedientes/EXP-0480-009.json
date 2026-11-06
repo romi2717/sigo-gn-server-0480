@@ -1,0 +1,12 @@
+{
+  "folio": "EXP-0480-009",
+  "nombreOperativo": "Operativo de transporte",
+  "tipoIncidente": "Incidente vial",
+  "zona": "Zona Sur",
+  "fecha": "2026-11-09",
+  "descripcion": "Registro de prueba del operativo de transporte.",
+  "estatus": "En proceso",
+  "prioridad": "Alta",
+  "fechaCreacion": "2026-10-29T16:00:00.000Z",
+  "fechaModificacion": "2026-10-29T16:00:00.000Z"
+}

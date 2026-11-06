@@ -4,5 +4,9 @@
   "zona": "Ecatepec",
   "fecha": "2026-11-03",
   "descripcion": "Se realico un recorrido de vigilancia por intento de secuestro.",
-  "folio": "EXP-0480-004"
+  "folio": "EXP-0480-004",
+  "estatus": "Abierto",
+  "prioridad": "Alta",
+  "fechaCreacion": "2026-10-24T16:00:00.000Z",
+  "fechaModificacion": "2026-10-24T16:00:00.000Z"
 }

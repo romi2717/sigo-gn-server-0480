@@ -1,0 +1,12 @@
+{
+  "folio": "EXP-0480-006",
+  "nombreOperativo": "Operativo de seguridad vial",
+  "tipoIncidente": "Accidente",
+  "zona": "Zona Norte",
+  "fecha": "2026-11-06",
+  "descripcion": "Registro de prueba del operativo de seguridad vial.",
+  "estatus": "Abierto",
+  "prioridad": "Alta",
+  "fechaCreacion": "2026-10-26T16:00:00.000Z",
+  "fechaModificacion": "2026-10-26T16:00:00.000Z"
+}
