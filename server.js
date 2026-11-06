@@ -17,12 +17,41 @@ const carpetaExpedientes = path.join(
 app.use(cors());
 app.use(express.json());
 
-// Crear la carpeta si no existe
+// Crear carpeta si no existe
 if (!fs.existsSync(carpetaExpedientes)) {
   fs.mkdirSync(carpetaExpedientes, { recursive: true });
 }
 
-// Funcion para leer todos los expedientes
+// Roles y permisos octales
+const permisosRoles = {
+  Comandante: 7,
+  Oficial: 6,
+  Analista: 4
+};
+
+// Comprobar permisos con el operador &
+function tienePermiso(rolUsuario, accionRequerida) {
+  const permisos = permisosRoles[rolUsuario] || 0;
+
+  return (permisos & accionRequerida) === accionRequerida;
+}
+
+// Validar el rol enviado por el frontend
+function validarPermiso(accionRequerida) {
+  return (req, res, next) => {
+    const rol = req.headers["x-rol"];
+
+    if (!tienePermiso(rol, accionRequerida)) {
+      return res.status(403).json({
+        mensaje: "Acceso prohibido: no tienes permiso"
+      });
+    }
+
+    next();
+  };
+}
+
+// Leer todos los expedientes
 function obtenerExpedientes() {
   const archivos = fs.readdirSync(carpetaExpedientes);
 
@@ -38,7 +67,7 @@ function obtenerExpedientes() {
   return expedientes;
 }
 
-// Funcion para validar el folio
+// Validar el folio
 function folioValido(folio) {
   return /^EXP-0480-\d{3,}$/.test(folio);
 }
@@ -55,14 +84,16 @@ app.get("/expedientes", (req, res) => {
   res.json(expedientes);
 });
 
-// GET - Buscar expedientes por texto
+// GET - Buscar expedientes
 app.get("/expedientes/buscar", (req, res) => {
   const texto = String(req.query.texto || "").toLowerCase();
 
   const expedientes = obtenerExpedientes();
 
   const resultados = expedientes.filter(expediente => {
-    const folio = String(expediente.folio || "").toLowerCase();
+    const folio = String(
+      expediente.folio || ""
+    ).toLowerCase();
 
     const nombre = String(
       expediente.nombreOperativo || ""
@@ -82,8 +113,9 @@ app.get("/expedientes/buscar", (req, res) => {
   res.json(resultados);
 });
 
-// POST - Crear un expediente
-app.post("/expedientes", (req, res) => {
+// POST - Registrar expediente
+// Solo Comandante y Oficial pueden registrar
+app.post("/expedientes", validarPermiso(2), (req, res) => {
   const estatusValidos = ["Abierto", "En proceso", "Cerrado"];
   const prioridadesValidas = ["Alta", "Media", "Baja"];
 
@@ -108,7 +140,7 @@ app.post("/expedientes", (req, res) => {
     fechaModificacion: fechaActual
   };
 
-  // Obtener los folios existentes
+  // Obtener folios existentes
   const archivos = fs.readdirSync(carpetaExpedientes)
     .filter(archivo => archivo.endsWith(".json"));
 
@@ -120,7 +152,7 @@ app.post("/expedientes", (req, res) => {
     return coincidencia ? Number(coincidencia[1]) : 0;
   });
 
-  // Generar el siguiente folio
+  // Generar siguiente folio
   const siguienteNumero = Math.max(0, ...numeros) + 1;
 
   expediente.folio = "EXP-0480-" +
@@ -131,7 +163,6 @@ app.post("/expedientes", (req, res) => {
     expediente.folio + ".json"
   );
 
-  // Guardar el expediente
   fs.writeFileSync(
     ruta,
     JSON.stringify(expediente, null, 2)
@@ -166,107 +197,123 @@ app.get("/expedientes/:folio", (req, res) => {
   res.json(JSON.parse(contenido));
 });
 
-// PUT - Modificar un expediente
-app.put("/expedientes/:folio", (req, res) => {
-  const folio = req.params.folio;
+// PUT - Modificar expediente
+// Requiere permiso de escritura (2)
+app.put(
+  "/expedientes/:folio",
+  validarPermiso(2),
+  (req, res) => {
+    const folio = req.params.folio;
 
-  if (!folioValido(folio)) {
-    return res.status(400).json({
-      mensaje: "Folio no valido"
+    if (!folioValido(folio)) {
+      return res.status(400).json({
+        mensaje: "Folio no valido"
+      });
+    }
+
+    const ruta = path.join(
+      carpetaExpedientes,
+      folio + ".json"
+    );
+
+    if (!fs.existsSync(ruta)) {
+      return res.status(404).json({
+        mensaje: "Expediente no encontrado"
+      });
+    }
+
+    // Leer datos anteriores
+    const anterior = JSON.parse(
+      fs.readFileSync(ruta, "utf8")
+    );
+
+    const estatusValidos = [
+      "Abierto",
+      "En proceso",
+      "Cerrado"
+    ];
+
+    const prioridadesValidas = [
+      "Alta",
+      "Media",
+      "Baja"
+    ];
+
+    const estatus = req.body.estatus === undefined
+      ? (anterior.estatus || "Abierto")
+      : req.body.estatus;
+
+    const prioridad = req.body.prioridad === undefined
+      ? (anterior.prioridad || "Media")
+      : req.body.prioridad;
+
+    if (
+      !estatusValidos.includes(estatus) ||
+      !prioridadesValidas.includes(prioridad)
+    ) {
+      return res.status(400).json({
+        mensaje: "Estatus o prioridad no validos"
+      });
+    }
+
+    // Actualizar expediente
+    const actualizado = {
+      ...anterior,
+      ...req.body,
+      folio: folio,
+      estatus: estatus,
+      prioridad: prioridad,
+      fechaCreacion: anterior.fechaCreacion ||
+        new Date().toISOString(),
+      fechaModificacion: new Date().toISOString()
+    };
+
+    fs.writeFileSync(
+      ruta,
+      JSON.stringify(actualizado, null, 2)
+    );
+
+    res.json({
+      mensaje: "Expediente actualizado correctamente",
+      expediente: actualizado
     });
   }
+);
 
-  const ruta = path.join(
-    carpetaExpedientes,
-    folio + ".json"
-  );
+// DELETE - Eliminar expediente
+// Requiere permiso de eliminacion (1)
+app.delete(
+  "/expedientes/:folio",
+  validarPermiso(1),
+  (req, res) => {
+    const folio = req.params.folio;
 
-  if (!fs.existsSync(ruta)) {
-    return res.status(404).json({
-      mensaje: "Expediente no encontrado"
+    if (!folioValido(folio)) {
+      return res.status(400).json({
+        mensaje: "Folio no valido"
+      });
+    }
+
+    const ruta = path.join(
+      carpetaExpedientes,
+      folio + ".json"
+    );
+
+    if (!fs.existsSync(ruta)) {
+      return res.status(404).json({
+        mensaje: "Expediente no encontrado"
+      });
+    }
+
+    fs.unlinkSync(ruta);
+
+    res.json({
+      mensaje: "Expediente eliminado correctamente"
     });
   }
+);
 
-  // Leer los datos anteriores
-  const anterior = JSON.parse(
-    fs.readFileSync(ruta, "utf8")
-  );
-
-  // Validar estatus y prioridad
-  const estatusValidos = ["Abierto", "En proceso", "Cerrado"];
-  const prioridadesValidas = ["Alta", "Media", "Baja"];
-
-  const estatus = req.body.estatus === undefined
-    ? (anterior.estatus || "Abierto")
-    : req.body.estatus;
-
-  const prioridad = req.body.prioridad === undefined
-    ? (anterior.prioridad || "Media")
-    : req.body.prioridad;
-
-  if (
-    !estatusValidos.includes(estatus) ||
-    !prioridadesValidas.includes(prioridad)
-  ) {
-    return res.status(400).json({
-      mensaje: "Estatus o prioridad no validos"
-    });
-  }
-
-  // Actualizar el expediente
-  const actualizado = {
-    ...anterior,
-    ...req.body,
-    folio: folio,
-    estatus: estatus,
-    prioridad: prioridad,
-    fechaCreacion: anterior.fechaCreacion ||
-      new Date().toISOString(),
-    fechaModificacion: new Date().toISOString()
-  };
-
-  // Guardar los cambios
-  fs.writeFileSync(
-    ruta,
-    JSON.stringify(actualizado, null, 2)
-  );
-
-  res.json({
-    mensaje: "Expediente actualizado correctamente",
-    expediente: actualizado
-  });
-});
-
-// DELETE - Eliminar un expediente
-app.delete("/expedientes/:folio", (req, res) => {
-  const folio = req.params.folio;
-
-  if (!folioValido(folio)) {
-    return res.status(400).json({
-      mensaje: "Folio no valido"
-    });
-  }
-
-  const ruta = path.join(
-    carpetaExpedientes,
-    folio + ".json"
-  );
-
-  if (!fs.existsSync(ruta)) {
-    return res.status(404).json({
-      mensaje: "Expediente no encontrado"
-    });
-  }
-
-  // Eliminar el archivo JSON
-  fs.unlinkSync(ruta);
-
-  res.json({
-    mensaje: "Expediente eliminado correctamente"
-  });
-});
-
-// Iniciar el servidor
+// Iniciar servidor
 app.listen(PORT, () => {
   console.log(
     "Servidor funcionando en http://localhost:4000"
